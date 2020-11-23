@@ -38,7 +38,7 @@ main(int argc, char *argv[])
 {
   int fd, i;
   char *pattern;
-
+  //printf("grep:argc = %d\n", argc);
   if(argc <= 1){
     fprintf(2, "usage: grep pattern [file ...]\n");
     exit(1);
