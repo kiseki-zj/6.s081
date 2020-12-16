@@ -28,6 +28,7 @@ countfree()
     }
     n += PGSIZE;
   }
+
   sinfo(&info);
   if (info.freemem != 0) {
     printf("FAIL: there is no free mem, but sysinfo.freemem=%d\n",
@@ -78,7 +79,7 @@ testmem() {
 void
 testcall() {
   struct sysinfo info;
-  
+  //printf("in testproc addr is :%d\n", info);
   if (sysinfo(&info) < 0) {
     printf("FAIL: sysinfo failed\n");
     exit(1);
@@ -95,7 +96,7 @@ void testproc() {
   uint64 nproc;
   int status;
   int pid;
-  
+
   sinfo(&info);
   nproc = info.nproc;
 
