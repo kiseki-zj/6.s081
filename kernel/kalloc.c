@@ -30,8 +30,7 @@ kinit()
   freerange(end, (void*)PHYSTOP);
 }
 
-void
-freerange(void *pa_start, void *pa_end)
+void freerange(void *pa_start, void *pa_end)
 {
   char *p;
   p = (char*)PGROUNDUP((uint64)pa_start);

@@ -20,6 +20,7 @@ void
 trapinit(void)
 {
   initlock(&tickslock, "time");
+  //printf("%p\n%p", TRAMPOLINE, trampoline);
 }
 
 // set up to take exceptions and traps while in the kernel.

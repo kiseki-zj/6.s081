@@ -279,6 +279,7 @@ QEMUOPTS += -device e1000,netdev=net0,bus=pcie.0
 endif
 
 qemu: $K/kernel fs.img
+	$(OBJCOPY) -O binary $K/kernel $K/kernel.bin
 	$(QEMU) $(QEMUOPTS)
 
 .gdbinit: .gdbinit.tmpl-riscv
