@@ -4,6 +4,8 @@
         "*.tcc": "c",
         "cstdlib": "c",
         "memory": "c",
-        "stdlib.h": "c"
+        "stdlib.h": "c",
+        "proc.h": "c",
+        "defs.h": "c"
     }
 }

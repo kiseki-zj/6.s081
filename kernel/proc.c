@@ -20,6 +20,8 @@ static void wakeup1(struct proc *chan);
 static void freeproc(struct proc *p);
 
 extern char trampoline[]; // trampoline.S
+//lab3 step2
+extern pagetable_t kernel_pagetable;
 
 // initialize the proc table at boot time.
 void
@@ -43,7 +45,16 @@ procinit(void)
   }
   kvminithart();
 }
-
+//lab3 step2
+void kprocinit(struct proc *p) {
+  uint64 va = KSTACK((int) (p - proc));
+  pte_t *pte;
+  pte = walk(kernel_pagetable, va, 0);
+  uint64 pa = PTE2PA(*pte);
+  //printf("p->kstack = %p\n", KSTACK((int) (p - proc)));
+  proc_kvmmap(p->kpagetable, (uint64)va, (uint64)pa, PGSIZE, PTE_R | PTE_W);
+  p->kstack = va;
+}
 // Must be called with interrupts disabled,
 // to prevent race with process being moved
 // to a different CPU.
@@ -120,6 +131,12 @@ found:
     release(&p->lock);
     return 0;
   }
+  //lab3 step2
+  
+  p->kpagetable = proc_kvminit(p->kpagetable);
+  
+  //vmprint(p->kpagetable);
+  kprocinit(p);
 
   // Set up new context to start executing at forkret,
   // which returns to user space.
@@ -473,10 +490,19 @@ scheduler(void)
         // before jumping back to us.
         p->state = RUNNING;
         c->proc = p;
+        //lab3 step2
+        w_satp(MAKE_SATP(p->kpagetable));
+        sfence_vma();
+
         swtch(&c->context, &p->context);
 
         // Process is done running for now.
         // It should have changed its p->state before coming back.
+
+        //lab3 step2
+        w_satp(MAKE_SATP(kernel_pagetable));
+        sfence_vma();
+
         c->proc = 0;
 
         found = 1;

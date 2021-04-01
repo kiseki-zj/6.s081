@@ -443,7 +443,7 @@ copyinstr(pagetable_t pagetable, char *dst, uint64 srcva, uint64 max)
   }
 }
 
-void vmprint(pagetable_t pagetable, uint64 depth) {
+void _vmprint(pagetable_t pagetable, uint64 depth) {
   if (depth == 1) 
     printf("page table %p\n", pagetable);
   if (depth == 4) return;
@@ -454,7 +454,46 @@ void vmprint(pagetable_t pagetable, uint64 depth) {
       for (int j = 1; j < depth; j++)
         printf(" ..");
       printf("%d: pte %p pa %p\n", i, pte, PTE2PA(pte));
-      vmprint((pagetable_t)PTE2PA(pte), depth+1);
+      _vmprint((pagetable_t)PTE2PA(pte), depth+1);
     }
   }
+}
+
+void vmprint(pagetable_t pagetable) {
+  _vmprint(pagetable, 1);
+}
+//lab3 step2
+void
+proc_kvmmap(pagetable_t kpagetable, uint64 va, uint64 pa, uint64 sz, int perm) {
+  if(mappages(kpagetable, va, sz, pa, perm) != 0)
+    panic("kvmmap");
+}
+pagetable_t
+proc_kvminit(pagetable_t kpagetable)
+{
+
+  kpagetable = (pagetable_t) kalloc();
+  //printf("kpagetable = %p\n", kpagetable);
+  memset(kpagetable, 0, PGSIZE);
+  // uart registers
+  proc_kvmmap(kpagetable, UART0, UART0, PGSIZE, PTE_R | PTE_W);
+  // virtio mmio disk interface
+  proc_kvmmap(kpagetable, VIRTIO0, VIRTIO0, PGSIZE, PTE_R | PTE_W);
+
+  // CLINT
+  proc_kvmmap(kpagetable, CLINT, CLINT, 0x10000, PTE_R | PTE_W);
+
+  // PLIC
+  proc_kvmmap(kpagetable, PLIC, PLIC, 0x400000, PTE_R | PTE_W);
+
+  // map kernel text executable and read-only.
+  proc_kvmmap(kpagetable, KERNBASE, KERNBASE, (uint64)etext-KERNBASE, PTE_R | PTE_X);
+
+  // map kernel data and the physical RAM we'll make use of.
+  proc_kvmmap(kpagetable, (uint64)etext, (uint64)etext, PHYSTOP-(uint64)etext, PTE_R | PTE_W);
+  // map the trampoline for trap entry/exit to
+  // the highest virtual address in the kernel.
+  proc_kvmmap(kpagetable, TRAMPOLINE, (uint64)trampoline, PGSIZE, PTE_R | PTE_X);
+  //mprint(kernel_pagetable, 1);
+  return kpagetable;
 }
