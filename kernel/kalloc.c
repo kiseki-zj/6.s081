@@ -73,6 +73,7 @@ kalloc(void)
   r = kmem.freelist;
   if(r)
     kmem.freelist = r->next;
+  //else panic("fuck");
   release(&kmem.lock);
 
   if(r)

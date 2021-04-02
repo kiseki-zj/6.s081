@@ -22,7 +22,7 @@ static void freeproc(struct proc *p);
 extern char trampoline[]; // trampoline.S
 //lab3 step2
 extern pagetable_t kernel_pagetable;
-
+extern char etext[];
 // initialize the proc table at boot time.
 void
 procinit(void)
@@ -48,9 +48,7 @@ procinit(void)
 //lab3 step2
 void kprocinit(struct proc *p) {
   uint64 va = KSTACK((int) (p - proc));
-  pte_t *pte;
-  pte = walk(kernel_pagetable, va, 0);
-  uint64 pa = PTE2PA(*pte);
+  uint64 pa = kvmpa(va);
   //printf("p->kstack = %p\n", KSTACK((int) (p - proc)));
   proc_kvmmap(p->kpagetable, (uint64)va, (uint64)pa, PGSIZE, PTE_R | PTE_W);
   p->kstack = va;
@@ -133,8 +131,12 @@ found:
   }
   //lab3 step2
   
-  p->kpagetable = proc_kvminit(p->kpagetable);
-  
+  p->kpagetable = proc_kvminit(p);
+  if(p->kpagetable == 0){
+    freeproc(p);
+    release(&p->lock);
+    return 0;
+  }
   //vmprint(p->kpagetable);
   kprocinit(p);
 
@@ -153,12 +155,19 @@ found:
 static void
 freeproc(struct proc *p)
 {
+  //kvminithart();
   if(p->trapframe)
     kfree((void*)p->trapframe);
   p->trapframe = 0;
   if(p->pagetable)
     proc_freepagetable(p->pagetable, p->sz);
+  //lab3 step3
+  uvmunmap(p->kpagetable, 0, p->sz / PGSIZE, 0);
+  //lab3 step2
+  if (p->kpagetable)
+    proc_free_kpagetable(p);
   p->pagetable = 0;
+  p->kpagetable = 0;
   p->sz = 0;
   p->pid = 0;
   p->parent = 0;
@@ -211,7 +220,18 @@ proc_freepagetable(pagetable_t pagetable, uint64 sz)
   uvmunmap(pagetable, TRAPFRAME, 1, 0);
   uvmfree(pagetable, sz);
 }
-
+void proc_free_kpagetable(struct proc *p)
+{
+  uvmunmap(p->kpagetable, TRAMPOLINE, 1, 0);
+  uvmunmap(p->kpagetable, KSTACK((int) (p - proc)), 1, 0);
+  uvmunmap(p->kpagetable, UART0, 1, 0);
+  uvmunmap(p->kpagetable, VIRTIO0, 1, 0);
+  uvmunmap(p->kpagetable, CLINT, 0x10000 / PGSIZE, 0);
+  uvmunmap(p->kpagetable, PLIC, 0x400000 / PGSIZE, 0);
+  uvmunmap(p->kpagetable, KERNBASE, (uint64)(etext-KERNBASE) / PGSIZE, 0);
+  uvmunmap(p->kpagetable, (uint64)etext, (PHYSTOP-(uint64)etext) / PGSIZE, 0);
+  freewalk(p->kpagetable);
+}
 // a user program that calls exec("/init")
 // od -t xC initcode
 uchar initcode[] = {
@@ -237,6 +257,9 @@ userinit(void)
   // and data into it.
   uvminit(p->pagetable, initcode, sizeof(initcode));
   p->sz = PGSIZE;
+  if (kuvmcopy(p, p->sz, PTE_R|PTE_W|PTE_X) != 0) {
+    panic("kuvmcopy");
+  }
 
   // prepare for the very first "return" from kernel to user.
   p->trapframe->epc = 0;      // user program counter
@@ -257,8 +280,8 @@ growproc(int n)
 {
   uint sz;
   struct proc *p = myproc();
-
-  sz = p->sz;
+  uint oldsz;
+  oldsz = sz = p->sz;
   if(n > 0){
     if((sz = uvmalloc(p->pagetable, sz, sz + n)) == 0) {
       return -1;
@@ -267,6 +290,11 @@ growproc(int n)
     sz = uvmdealloc(p->pagetable, sz, sz + n);
   }
   p->sz = sz;
+  //lab3 step3
+  uvmunmap(p->kpagetable, 0, oldsz / PGSIZE, 0);
+  if (kuvmcopy(p, sz, PTE_R|PTE_W|PTE_X) != 0) {
+    panic("kuvmcopy");
+  }
   return 0;
 }
 
@@ -286,6 +314,11 @@ fork(void)
 
   // Copy user memory from parent to child.
   if(uvmcopy(p->pagetable, np->pagetable, p->sz) < 0){
+    freeproc(np);
+    release(&np->lock);
+    return -1;
+  }
+  if(kuvmcopy(np, p->sz, PTE_R|PTE_W|PTE_X) < 0){
     freeproc(np);
     release(&np->lock);
     return -1;
