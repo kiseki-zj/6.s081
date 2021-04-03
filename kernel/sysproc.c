@@ -6,7 +6,7 @@
 #include "memlayout.h"
 #include "spinlock.h"
 #include "proc.h"
-
+extern struct proc proc[];
 uint64
 sys_exit(void)
 {

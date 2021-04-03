@@ -18,11 +18,12 @@ struct spinlock pid_lock;
 extern void forkret(void);
 static void wakeup1(struct proc *chan);
 static void freeproc(struct proc *p);
-
+extern int mems;
 extern char trampoline[]; // trampoline.S
 //lab3 step2
 extern pagetable_t kernel_pagetable;
 extern char etext[];
+int bb=0;
 // initialize the proc table at boot time.
 void
 procinit(void)
@@ -156,16 +157,25 @@ static void
 freeproc(struct proc *p)
 {
   //kvminithart();
+  //printf("oldmems=%d\n", mems);
   if(p->trapframe)
     kfree((void*)p->trapframe);
   p->trapframe = 0;
+  //vmprint(p->pagetable);
+  /*vmprint(p->pagetable);
+  printf("sz:%d\n", p->sz);
+  printf("pid:%d\n", p->pid);
+  vmprint(p->kpagetable);*/
   if(p->pagetable)
     proc_freepagetable(p->pagetable, p->sz);
   //lab3 step3
-  uvmunmap(p->kpagetable, 0, p->sz / PGSIZE, 0);
+  //kvminithart();
+  
+  uvmunmap(p->kpagetable, 0, PGROUNDUP(p->sz) / PGSIZE, 0);
   //lab3 step2
   if (p->kpagetable)
     proc_free_kpagetable(p);
+  //printf("newmems=%d\n", mems);
   p->pagetable = 0;
   p->kpagetable = 0;
   p->sz = 0;
@@ -222,13 +232,13 @@ proc_freepagetable(pagetable_t pagetable, uint64 sz)
 }
 void proc_free_kpagetable(struct proc *p)
 {
-  uvmunmap(p->kpagetable, TRAMPOLINE, 1, 0);
-  uvmunmap(p->kpagetable, KSTACK((int) (p - proc)), 1, 0);
-  uvmunmap(p->kpagetable, UART0, 1, 0);
-  uvmunmap(p->kpagetable, VIRTIO0, 1, 0);
-  uvmunmap(p->kpagetable, CLINT, 0x10000 / PGSIZE, 0);
-  uvmunmap(p->kpagetable, PLIC, 0x400000 / PGSIZE, 0);
-  uvmunmap(p->kpagetable, KERNBASE, (uint64)(etext-KERNBASE) / PGSIZE, 0);
+  kuvmunmap(p->kpagetable, TRAMPOLINE, 1, 0);
+  kuvmunmap(p->kpagetable, KSTACK((int) (p - proc)), 1, 0);
+  kuvmunmap(p->kpagetable, UART0, 1, 0);
+  kuvmunmap(p->kpagetable, VIRTIO0, 1, 0);
+  kuvmunmap(p->kpagetable, CLINT, 0x10000 / PGSIZE, 0);
+  kuvmunmap(p->kpagetable, PLIC, 0x400000 / PGSIZE, 0);
+  kuvmunmap(p->kpagetable, KERNBASE, (uint64)(etext-KERNBASE) / PGSIZE, 0);
   uvmunmap(p->kpagetable, (uint64)etext, (PHYSTOP-(uint64)etext) / PGSIZE, 0);
   freewalk(p->kpagetable);
 }
@@ -280,21 +290,27 @@ growproc(int n)
 {
   uint sz;
   struct proc *p = myproc();
+  //lab3 step3
+
   uint oldsz;
   oldsz = sz = p->sz;
   if(n > 0){
-    if((sz = uvmalloc(p->pagetable, sz, sz + n)) == 0) {
+    sz = kuvmalloc(p, sz, sz + n);
+    if( sz == 0 ) {
+        if (p-proc == 11){
+    }
+      return -1;
+    }
+    if (sz > PLIC) {
+      kuvmdealloc(p, sz, oldsz);
       return -1;
     }
   } else if(n < 0){
-    sz = uvmdealloc(p->pagetable, sz, sz + n);
+      sz = kuvmdealloc(p, sz, sz + n);
   }
+  
+  
   p->sz = sz;
-  //lab3 step3
-  uvmunmap(p->kpagetable, 0, oldsz / PGSIZE, 0);
-  if (kuvmcopy(p, sz, PTE_R|PTE_W|PTE_X) != 0) {
-    panic("kuvmcopy");
-  }
   return 0;
 }
 
@@ -323,6 +339,7 @@ fork(void)
     release(&np->lock);
     return -1;
   }
+  //debug
   np->sz = p->sz;
 
   np->parent = p;

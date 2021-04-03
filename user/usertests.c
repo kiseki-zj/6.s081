@@ -2128,7 +2128,6 @@ sbrkfail(char *s)
     if(pids[i] != -1)
       read(fds[0], &scratch, 1);
   }
-
   // if those failed allocations freed up the pages they did allocate,
   // we'll be able to allocate here
   c = sbrk(PGSIZE);
@@ -2395,12 +2394,13 @@ sbrkbugs(char *s)
     // free all user memory; there used to be a bug that
     // would not adjust p->sz correctly in this case,
     // causing exit() to panic.
+    
     sbrk(-sz);
     // user page fault here.
     exit(0);
   }
   wait(0);
-
+  
   pid = fork();
   if(pid < 0){
     printf("fork failed\n");
@@ -2508,7 +2508,6 @@ execout(char *s)
           break;
         *(char*)(a + 4096 - 1) = 1;
       }
-
       // free a few pages, in order to let exec() make some
       // progress.
       for(int i = 0; i < avail; i++)
@@ -2588,7 +2587,6 @@ countfree()
 
   close(fds[0]);
   wait((int*)0);
-  
   return n;
 }
 
@@ -2633,7 +2631,7 @@ main(int argc, char *argv[])
     printf("Usage: usertests [-c] [testname]\n");
     exit(1);
   }
-  
+
   struct test {
     void (*f)(char *);
     char *s;
@@ -2696,7 +2694,6 @@ main(int argc, char *argv[])
     {bigdir, "bigdir"}, // slow
     { 0, 0},
   };
-
   if(continuous){
     printf("continuous usertests starting\n");
     while(1){

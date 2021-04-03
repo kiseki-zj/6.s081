@@ -10,7 +10,7 @@
 #include "defs.h"
 
 void freerange(void *pa_start, void *pa_end);
-
+int mems = 0;
 extern char end[]; // first address after kernel.
                    // defined by kernel.ld.
 
@@ -36,6 +36,7 @@ void freerange(void *pa_start, void *pa_end)
   p = (char*)PGROUNDUP((uint64)pa_start);
   for(; p + PGSIZE <= (char*)pa_end; p += PGSIZE)
     kfree(p);
+  mems=0;
 }
 
 // Free the page of physical memory pointed at by v,
@@ -58,6 +59,7 @@ kfree(void *pa)
   acquire(&kmem.lock);
   r->next = kmem.freelist;
   kmem.freelist = r;
+  mems--;
   release(&kmem.lock);
 }
 
@@ -67,12 +69,15 @@ kfree(void *pa)
 void *
 kalloc(void)
 {
+
   struct run *r;
 
   acquire(&kmem.lock);
   r = kmem.freelist;
-  if(r)
+  if(r){
     kmem.freelist = r->next;
+    mems++;
+  }
   //else panic("fuck");
   release(&kmem.lock);
 

@@ -1,0 +1,20 @@
+
+(code:2930): Gtk-WARNING **: 06:16:59.986: Theme parsing error: gtk.css:73:46: The style property GtkScrolledWindow:scrollbars-within-bevel is deprecated and shouldn't be used anymore. It will be removed in a future version
+../../third_party/tcmalloc/chromium/src/free_list.cc:135] Memory corruption detected. 
+/dev/fd/3: 没有那个文件或目录
+Server response: 
+../../third_party/tcmalloc/chromium/src/free_list.cc:135] Memory corruption detected. 
+/dev/fd/3: 没有那个文件或目录
+Server response: 
+../../third_party/tcmalloc/chromium/src/free_list.cc:135] Memory corruption detected. 
+/dev/fd/3: 没有那个文件或目录
+Server response: 
+[90m[main 2021-04-02T22:17:02.347Z][0m update#setState idle
+bash: 无法设定终端进程组(-1): 对设备不适当的 ioctl 操作
+bash: 此 shell 中无任务控制
+(node:2930) electron: The default of contextIsolation is deprecated and will be changing from false to true in a future release of Electron.  See https://github.com/electron/electron/issues/23506 for more information
+(node:3018) Electron: Loading non-context-aware native module in renderer: '/opt/VSCode-linux-x64/resources/app/node_modules.asar.unpacked/vscode-sqlite3/build/Release/sqlite.node'. This is deprecated, see https://github.com/electron/electron/issues/18397.
+(node:2930) electron: The default of contextIsolation is deprecated and will be changing from false to true in a future release of Electron.  See https://github.com/electron/electron/issues/23506 for more information
+(node:3085) Electron: Loading non-context-aware native module in renderer: '/opt/VSCode-linux-x64/resources/app/node_modules.asar.unpacked/spdlog/build/Release/spdlog.node'. This is deprecated, see https://github.com/electron/electron/issues/18397.
+[90m[main 2021-04-02T22:17:32.389Z][0m update#setState checking for updates
+[90m[main 2021-04-02T22:17:32.659Z][0m update#setState available for download

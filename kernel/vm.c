@@ -14,11 +14,11 @@
 pagetable_t kernel_pagetable;
 
 extern char etext[];  // kernel.ld sets this to end of kernel code.
-
+extern struct proc proc[];
 extern char trampoline[]; // trampoline.S
 extern int copyin_new(pagetable_t pagetable, char *dst, uint64 srcva, uint64 len);
 extern int copyinstr_new(pagetable_t pagetable, char *dst, uint64 srcva, uint64 max);
-
+extern int mems;
 /*
  * create a direct-map page table for the kernel.
  */
@@ -180,6 +180,28 @@ mappages(pagetable_t pagetable, uint64 va, uint64 size, uint64 pa, int perm)
 // Remove npages of mappings starting from va. va must be
 // page-aligned. The mappings must exist.
 // Optionally free the physical memory.
+int
+mappages_remap(pagetable_t pagetable, uint64 va, uint64 size, uint64 pa, int perm)
+{
+  uint64 a, last;
+  pte_t *pte;
+
+  a = PGROUNDDOWN(va);
+  last = PGROUNDDOWN(va + size - 1);
+  for(;;){
+    if((pte = walk(pagetable, a, 1)) == 0) {
+      //panic("wtf");
+      return -1;
+    }
+    *pte = PA2PTE(pa) | perm | PTE_V;
+    if(a == last)
+      break;
+    a += PGSIZE;
+    pa += PGSIZE;
+  }
+  return 0;
+}
+
 void
 uvmunmap(pagetable_t pagetable, uint64 va, uint64 npages, int do_free)
 {
@@ -200,6 +222,23 @@ uvmunmap(pagetable_t pagetable, uint64 va, uint64 npages, int do_free)
       uint64 pa = PTE2PA(*pte);
       kfree((void*)pa);
     }
+    //if (PX(2, a)==0 && PX(1, a)==11)
+    //printf("%d %d %d fuck!!!\n", PX(2, a), PX(1, a), PX(0, a));
+    *pte=0;
+  }
+}
+//lab3 step3
+void
+kuvmunmap(pagetable_t pagetable, uint64 va, uint64 npages, int do_free)
+{
+  uint64 a;
+  pte_t *pte;
+
+  if((va % PGSIZE) != 0)
+    panic("uvmunmap: not aligned");
+
+  for(a = va; a < va + npages*PGSIZE; a += PGSIZE){
+    pte = walk(pagetable, a, 0);
     *pte = 0;
   }
 }
@@ -260,7 +299,42 @@ uvmalloc(pagetable_t pagetable, uint64 oldsz, uint64 newsz)
   }
   return newsz;
 }
+//lab3 step3
+uint64
+kuvmalloc(struct proc *p, uint64 oldsz, uint64 newsz)
+{
+  char *mem;
+  uint64 a;
+  pagetable_t pagetable = p->pagetable;
+  pagetable_t kpagetable = p->kpagetable;
+  if(newsz < oldsz)
+    return oldsz;
+  oldsz = PGROUNDUP(oldsz);
+  for(a = oldsz; a < newsz; a += PGSIZE){
+    mem = kalloc();
+    if(mem == 0){
+      
+      kuvmdealloc(p, a, oldsz);    
+      return 0;
+    }
+    memset(mem, 0, PGSIZE);
+    
+    if(mappages(pagetable, a, PGSIZE, (uint64)mem, PTE_W|PTE_X|PTE_R|PTE_U) != 0){
+      kfree(mem);
+      kuvmdealloc(p, a, oldsz);
+      return 0;
+    }
 
+    if (mappages_remap(kpagetable, a, PGSIZE, (uint64)mem, PTE_W|PTE_X|PTE_R) != 0) {
+      kfree(mem);
+      uvmunmap(pagetable, a, 1, 0);
+      kuvmdealloc(p, a, oldsz);
+      return 0;
+    }
+    
+  }
+  return newsz;
+}
 // Deallocate user pages to bring the process size from oldsz to
 // newsz.  oldsz and newsz need not be page-aligned, nor does newsz
 // need to be less than oldsz.  oldsz can be larger than the actual
@@ -278,7 +352,22 @@ uvmdealloc(pagetable_t pagetable, uint64 oldsz, uint64 newsz)
 
   return newsz;
 }
+//lab3 step3
+uint64
+kuvmdealloc(struct proc *p, uint64 oldsz, uint64 newsz)
+{
+  pagetable_t pagetable = p->pagetable;
+  pagetable_t kpagetable = p->kpagetable;
+  if(newsz >= oldsz)
+    return oldsz;
 
+  if(PGROUNDUP(newsz) < PGROUNDUP(oldsz)){
+    int npages = (PGROUNDUP(oldsz) - PGROUNDUP(newsz)) / PGSIZE;
+    uvmunmap(pagetable, PGROUNDUP(newsz), npages, 1);
+    kuvmunmap(kpagetable, PGROUNDUP(newsz), npages, 0);
+  }
+  return newsz;
+}
 // Recursively free page-table pages.
 // All leaf mappings must already have been removed.
 void
@@ -345,6 +434,7 @@ uvmcopy(pagetable_t old, pagetable_t new, uint64 sz)
   return -1;
 }
 //lab3 step3
+//copy new's user pgtbl to kpgtbl
 int kuvmcopy(struct proc *new, uint64 sz, int perm) {
   pte_t *pte;
   uint64 pa, i;
@@ -355,7 +445,7 @@ int kuvmcopy(struct proc *new, uint64 sz, int perm) {
     if((*pte & PTE_V) == 0)
       panic("uvmcopy: page not present");
     pa = PTE2PA(*pte);
-    if(mappages(new->kpagetable, i, PGSIZE, pa, perm) != 0){
+    if(mappages_remap(new->kpagetable, i, PGSIZE, pa, perm) != 0){
       goto err;
     }
   }
@@ -480,6 +570,11 @@ void _vmprint(pagetable_t pagetable, uint64 depth) {
   if (depth == 1) 
     printf("page table %p\n", pagetable);
   if (depth == 4) return;
+  //debug
+  /*int max = 1;
+  if (depth == 3) max = 512;
+  if (depth == 2) max = 20;*/
+
   for (int i = 0; i < 512; i++) {
     pte_t pte = pagetable[i];
     if (pte & PTE_V) {

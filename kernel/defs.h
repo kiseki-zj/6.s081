@@ -175,6 +175,9 @@ void            proc_kvmmap(pagetable_t kpagetable, uint64 va, uint64 pa, uint64
 void            freewalk(pagetable_t pagetable);
 //lab3 step3
 int             kuvmcopy(struct proc *new, uint64 sz, int perm);
+uint64          kuvmalloc(struct proc *p, uint64 oldsz, uint64 newsz);
+uint64          kuvmdealloc(struct proc *p, uint64 oldsz, uint64 newsz);
+void            kuvmunmap(pagetable_t pagetable, uint64 va, uint64 npages, int do_free);
 #ifdef SOL_COW
 #else
 int             uvmcopy(pagetable_t, pagetable_t, uint64);
