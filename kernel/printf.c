@@ -132,3 +132,19 @@ printfinit(void)
   initlock(&pr.lock, "pr");
   pr.locking = 1;
 }
+
+void backtrace(void) {
+  uint64 fp = r_fp();
+  struct proc *p = myproc();
+  
+  while (1) {
+    uint64 *ra_addr = (uint64*)(fp - 8);
+    uint64 *fp_addr = (uint64*)(fp - 16);
+    fp = *fp_addr;
+    //printf("fp=%p\n", *fp_addr);
+    if (PGROUNDUP(fp) != p->kstack+PGSIZE) 
+      break;
+    printf("%p\n", *ra_addr);
+  }
+  return ;
+}

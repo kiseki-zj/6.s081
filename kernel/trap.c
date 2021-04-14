@@ -37,7 +37,7 @@ void
 usertrap(void)
 {
   int which_dev = 0;
-
+  //int pp = 0;
   if((r_sstatus() & SSTATUS_SPP) != 0)
     panic("usertrap: not from user mode");
 
@@ -77,8 +77,51 @@ usertrap(void)
     exit(-1);
 
   // give up the CPU if this is a timer interrupt.
-  if(which_dev == 2)
+  if(which_dev == 2) {
+    //printf("ticks=%d\n", ticks);
+    p->tick++;
+    if (p->tick == p->interval) {
+      if (p->flag == 0) {
+        p->u_epc = p->trapframe->epc;
+        p->u_ra = p->trapframe->ra;
+        p->u_sp = p->trapframe->sp;
+        p->u_gp = p->trapframe->gp;
+        p->u_tp = p->trapframe->tp;
+        p->u_t0 = p->trapframe->t0;
+        p->u_t1 = p->trapframe->t1;
+        p->u_t2 = p->trapframe->t2;
+        p->u_s0 = p->trapframe->s0;
+        p->u_s1 = p->trapframe->s1;
+        p->u_a0 = p->trapframe->a0;
+        p->u_a1 = p->trapframe->a1;
+        p->u_a2 = p->trapframe->a2;
+        p->u_a3 = p->trapframe->a3;
+        p->u_a4 = p->trapframe->a4;
+        p->u_a5 = p->trapframe->a5;
+        p->u_a6 = p->trapframe->a6;
+        p->u_a7 = p->trapframe->a7;
+        p->u_s2 = p->trapframe->s2;
+        p->u_s3 = p->trapframe->s3;
+        p->u_s4 = p->trapframe->s4;
+        p->u_s5 = p->trapframe->s5;
+        p->u_s6 = p->trapframe->s6;
+        p->u_s7 = p->trapframe->s7;
+        p->u_s8 = p->trapframe->s8;
+        p->u_s9 = p->trapframe->s9;
+        p->u_s10 = p->trapframe->s10;
+        p->u_s11 = p->trapframe->s11;
+        p->u_t3 = p->trapframe->t3;
+        p->u_t4 = p->trapframe->t4;
+        p->u_t5 = p->trapframe->t5;
+        p->u_t6 = p->trapframe->t6;
+      
+        p->trapframe->epc = (uint64)p->handler;
+        p->flag = 1;
+      }
+      p->tick = 0;
+    }
     yield();
+  }
 
   usertrapret();
 }
@@ -90,6 +133,7 @@ void
 usertrapret(void)
 {
   struct proc *p = myproc();
+
 
   // we're about to switch the destination of traps from
   // kerneltrap() to usertrap(), so turn off interrupts until
@@ -164,6 +208,7 @@ clockintr()
 {
   acquire(&tickslock);
   ticks++;
+  //printf("ticks=%d\n", ticks);
   wakeup(&ticks);
   release(&tickslock);
 }

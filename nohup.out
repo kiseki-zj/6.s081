@@ -1,0 +1,31 @@
+
+(code:1898): Gtk-WARNING **: 01:59:26.058: Theme parsing error: gtk.css:73:46: The style property GtkScrolledWindow:scrollbars-within-bevel is deprecated and shouldn't be used anymore. It will be removed in a future version
+[90m[main 2021-04-08T17:59:26.207Z][0m update#setState idle
+bash: 无法设定终端进程组(-1): 对设备不适当的 ioctl 操作
+bash: 此 shell 中无任务控制
+(node:1898) electron: The default of contextIsolation is deprecated and will be changing from false to true in a future release of Electron.  See https://github.com/electron/electron/issues/23506 for more information
+(node:1948) Electron: Loading non-context-aware native module in renderer: '/opt/VSCode-linux-x64/resources/app/node_modules.asar.unpacked/vscode-sqlite3/build/Release/sqlite.node'. This is deprecated, see https://github.com/electron/electron/issues/18397.
+(node:1898) electron: The default of contextIsolation is deprecated and will be changing from false to true in a future release of Electron.  See https://github.com/electron/electron/issues/23506 for more information
+(node:2006) Electron: Loading non-context-aware native module in renderer: '/opt/VSCode-linux-x64/resources/app/node_modules.asar.unpacked/spdlog/build/Release/spdlog.node'. This is deprecated, see https://github.com/electron/electron/issues/18397.
+[90m[main 2021-04-08T17:59:56.223Z][0m update#setState checking for updates
+[90m[main 2021-04-08T17:59:56.294Z][0m update#setState available for download
+
+(code:5836): Gtk-WARNING **: 21:58:06.398: Theme parsing error: gtk.css:73:46: The style property GtkScrolledWindow:scrollbars-within-bevel is deprecated and shouldn't be used anymore. It will be removed in a future version
+../../third_party/tcmalloc/chromium/src/free_list.cc:135] Memory corruption detected. 
+[90m[main 2021-04-09T13:58:06.582Z][0m update#setState idle
+bash: 无法设定终端进程组(-1): 对设备不适当的 ioctl 操作
+bash: 此 shell 中无任务控制
+(node:5836) electron: The default of contextIsolation is deprecated and will be changing from false to true in a future release of Electron.  See https://github.com/electron/electron/issues/23506 for more information
+/dev/fd/3: 没有那个文件或目录
+Server response: 
+../../third_party/tcmalloc/chromium/src/free_list.cc:135] Memory corruption detected. 
+/dev/fd/3: 没有那个文件或目录
+Server response: 
+../../third_party/tcmalloc/chromium/src/free_list.cc:135] Memory corruption detected. 
+/dev/fd/3: 没有那个文件或目录
+Server response: 
+(node:5890) Electron: Loading non-context-aware native module in renderer: '/opt/VSCode-linux-x64/resources/app/node_modules.asar.unpacked/vscode-sqlite3/build/Release/sqlite.node'. This is deprecated, see https://github.com/electron/electron/issues/18397.
+(node:5836) electron: The default of contextIsolation is deprecated and will be changing from false to true in a future release of Electron.  See https://github.com/electron/electron/issues/23506 for more information
+(node:5982) Electron: Loading non-context-aware native module in renderer: '/opt/VSCode-linux-x64/resources/app/node_modules.asar.unpacked/spdlog/build/Release/spdlog.node'. This is deprecated, see https://github.com/electron/electron/issues/18397.
+[90m[main 2021-04-09T13:58:36.593Z][0m update#setState checking for updates
+[90m[main 2021-04-09T13:58:36.665Z][0m update#setState available for download
