@@ -102,10 +102,6 @@ walkaddr(pagetable_t pagetable, uint64 va)
     return 0;
 
   pte = walk(pagetable, va, 0);
-  if (isValid(p, va) == 0) {
-    vmprint(p->pagetable);
-    return 0;
-  }
   if(pte == 0 || (*pte & PTE_V) == 0) {
     uint64 ka = (uint64)kalloc();
     if (ka == 0 || isValid(p, va) == 0) {
@@ -462,7 +458,31 @@ copyinstr(pagetable_t pagetable, char *dst, uint64 srcva, uint64 max)
 
 int isValid(struct proc *p, uint64 va) {
   uint64 stackbase = PGROUNDDOWN(p->trapframe->sp);
-  if (va >= p->sz || (va >=stackbase-PGSIZE && va < stackbase+PGSIZE)) 
+  if (va >= p->sz || (va < stackbase+PGSIZE)) 
     return 0;
   return 1;
+}
+void _vmprint(pagetable_t pagetable, uint64 depth) {
+  if (depth == 1) 
+    printf("page table %p\n", pagetable);
+  if (depth == 4) return;
+  //debug
+  /*int max = 1;
+  if (depth == 3) max = 512;
+  if (depth == 2) max = 20;*/
+
+  for (int i = 0; i < 512; i++) {
+    pte_t pte = pagetable[i];
+    if (pte & PTE_V) {
+      printf("..");
+      for (int j = 1; j < depth; j++)
+        printf(" ..");
+      printf("%d: pte %p pa %p\n", i, pte, PTE2PA(pte));
+      _vmprint((pagetable_t)PTE2PA(pte), depth+1);
+    }
+  }
+}
+
+void vmprint(pagetable_t pagetable) {
+  _vmprint(pagetable, 1);
 }
