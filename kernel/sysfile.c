@@ -191,7 +191,6 @@ sys_unlink(void)
 
   if(argstr(0, path, MAXPATH) < 0)
     return -1;
-
   begin_op();
   if((dp = nameiparent(path, name)) == 0){
     end_op();
@@ -294,7 +293,6 @@ sys_open(void)
 
   if((n = argstr(0, path, MAXPATH)) < 0 || argint(1, &omode) < 0)
     return -1;
-
   begin_op();
 
   if(omode & O_CREATE){

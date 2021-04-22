@@ -73,10 +73,9 @@ usertrap(void)
     if (ka == 0) {
       p->killed = 1;
     }
-    /*else if(isValid(p, va) == 0) {
-      printf("%p\n%p\n", p->sz, va);
+    else if(isValid(p, va) == 0) {
       p->killed = 1;
-    }*/
+    }
     else {
       memset((void*)ka, 0, PGSIZE);
       if (mappages(p->pagetable, PGROUNDDOWN(va), PGSIZE, ka, PTE_U | PTE_R | PTE_W) != 0) {

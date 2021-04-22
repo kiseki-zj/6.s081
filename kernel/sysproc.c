@@ -44,11 +44,11 @@ sys_sbrk(void)
   int addr;
   int n;
   struct proc *p = myproc();
+  addr = myproc()->sz;
   uint64 stackbase = PGROUNDDOWN(p->trapframe->sp);
   if(argint(0, &n) < 0)
     return -1;
   if (n > 0) {
-    printf("n=%p\nsz=%p\n", n, p->sz);
     p->sz += n;
     if (p->sz > MAXVA-2*PGSIZE)
       p->sz = MAXVA-2*PGSIZE;
@@ -59,7 +59,6 @@ sys_sbrk(void)
     }
     else p->sz = uvmdealloc(p->pagetable, p->sz, p->sz + n);
   }
-  addr = myproc()->sz;
   //if(growproc(n) < 0)
   //  return -1;
   return addr;

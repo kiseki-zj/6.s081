@@ -15,7 +15,7 @@ pagetable_t kernel_pagetable;
 extern char etext[];  // kernel.ld sets this to end of kernel code.
 
 extern char trampoline[]; // trampoline.S
-
+extern struct proc *initproc;
 /*
  * create a direct-map page table for the kernel.
  */
@@ -97,15 +97,29 @@ walkaddr(pagetable_t pagetable, uint64 va)
 {
   pte_t *pte;
   uint64 pa;
-
+      struct proc *p = myproc();
   if(va >= MAXVA)
     return 0;
 
   pte = walk(pagetable, va, 0);
-  if(pte == 0)
+  if (isValid(p, va) == 0) {
+    vmprint(p->pagetable);
     return 0;
-  if((*pte & PTE_V) == 0)
-    return 0;
+  }
+  if(pte == 0 || (*pte & PTE_V) == 0) {
+    uint64 ka = (uint64)kalloc();
+    if (ka == 0 || isValid(p, va) == 0) {
+      return 0;
+    }
+    else {
+      memset((void*)ka, 0, PGSIZE);
+      if (mappages(p->pagetable, PGROUNDDOWN(va), PGSIZE, ka, PTE_U | PTE_R | PTE_W) != 0) {
+        kfree((void*)ka);
+        return 0;
+      }
+    }
+  }
+
   if((*pte & PTE_U) == 0)
     return 0;
   pa = PTE2PA(*pte);
@@ -318,11 +332,11 @@ uvmcopy(pagetable_t old, pagetable_t new, uint64 sz)
 
   for(i = 0; i < sz; i += PGSIZE){
     if((pte = walk(old, i, 0)) == 0)
-      panic("uvmcopy: pte should exist");
-      //continue;
+      //panic("uvmcopy: pte should exist");
+      continue;
     if((*pte & PTE_V) == 0)
-      panic("uvmcopy: page not present");
-      //continue;
+      //panic("uvmcopy: page not present");
+      continue;
     pa = PTE2PA(*pte);
     flags = PTE_FLAGS(*pte);
     if((mem = kalloc()) == 0)
@@ -448,7 +462,7 @@ copyinstr(pagetable_t pagetable, char *dst, uint64 srcva, uint64 max)
 
 int isValid(struct proc *p, uint64 va) {
   uint64 stackbase = PGROUNDDOWN(p->trapframe->sp);
-  if (va > p->sz || (va >=stackbase-PGSIZE && va < stackbase+PGSIZE)) 
+  if (va >= p->sz || (va >=stackbase-PGSIZE && va < stackbase+PGSIZE)) 
     return 0;
   return 1;
 }
