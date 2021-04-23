@@ -51,11 +51,13 @@ sys_sbrk(void)
   if (n > 0) {
     p->sz += n;
     if (p->sz > MAXVA-2*PGSIZE)
-      p->sz = MAXVA-2*PGSIZE;
+      return -1;
+      //p->sz = MAXVA-2*PGSIZE;
   }
   else if (n < 0) {
     if (p->sz < stackbase+PGSIZE-n) {
-      p->sz = uvmdealloc(p->pagetable, p->sz, stackbase + PGSIZE);
+      return -1;
+      //p->sz = uvmdealloc(p->pagetable, p->sz, stackbase + PGSIZE);
     }
     else p->sz = uvmdealloc(p->pagetable, p->sz, p->sz + n);
   }

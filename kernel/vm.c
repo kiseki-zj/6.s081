@@ -104,7 +104,11 @@ walkaddr(pagetable_t pagetable, uint64 va)
   pte = walk(pagetable, va, 0);
   if(pte == 0 || (*pte & PTE_V) == 0) {
     uint64 ka = (uint64)kalloc();
-    if (ka == 0 || isValid(p, va) == 0) {
+    if (ka == 0) {
+      return 0;
+    }
+    else if (isValid(p, va) == 0) {
+      kfree((void*)ka);
       return 0;
     }
     else {
@@ -113,6 +117,7 @@ walkaddr(pagetable_t pagetable, uint64 va)
         kfree((void*)ka);
         return 0;
       }
+      return ka;
     }
   }
 

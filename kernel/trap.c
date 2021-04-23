@@ -74,6 +74,7 @@ usertrap(void)
       p->killed = 1;
     }
     else if(isValid(p, va) == 0) {
+      kfree((void*)ka);
       p->killed = 1;
     }
     else {
