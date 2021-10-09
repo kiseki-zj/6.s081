@@ -230,6 +230,8 @@ userinit(void)
 
   p->state = RUNNABLE;
 
+  /*printf("========init=======\n");
+  vmprint(p->pagetable);*/
   release(&p->lock);
 }
 
@@ -266,13 +268,24 @@ fork(void)
   if((np = allocproc()) == 0){
     return -1;
   }
-
+  /*
+  printf("=====before copy, parent======\n");
+  vmprint(p->pagetable);
+  printf("============================\n");
+  */
   // Copy user memory from parent to child.
   if(uvmcopy(p->pagetable, np->pagetable, p->sz) < 0){
     freeproc(np);
     release(&np->lock);
     return -1;
   }
+  /*
+  printf("=======after copy, parent======\n");
+  vmprint(p->pagetable);
+  printf("==============================\n");
+  printf("=======after copy, child==========\n");
+  vmprint(np->pagetable);
+  printf("=========================\n");*/
   np->sz = p->sz;
 
   np->parent = p;
@@ -297,6 +310,10 @@ fork(void)
 
   release(&np->lock);
 
+  /*vmprint(p->pagetable);
+  printf("--------------\n");
+  vmprint(np->pagetable);
+  printf("--------------\n");*/
   return pid;
 }
 

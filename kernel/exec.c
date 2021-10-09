@@ -21,6 +21,14 @@ exec(char *path, char **argv)
   pagetable_t pagetable = 0, oldpagetable;
   struct proc *p = myproc();
 
+  /*if(p->pid != 1) {
+    printf("==============before exec=============\n");
+    vmprint(p->pagetable);
+    printf("===================================\n");
+    printf("==============before exec, parent:==============\n");
+    vmprint(p->parent->pagetable);
+    printf("=====================================\n");
+  }*/
   begin_op();
 
   if((ip = namei(path)) == 0){
@@ -115,7 +123,14 @@ exec(char *path, char **argv)
   p->trapframe->epc = elf.entry;  // initial program counter = main
   p->trapframe->sp = sp; // initial stack pointer
   proc_freepagetable(oldpagetable, oldsz);
-
+  /*if (p->pid != 1) {
+    printf("=============after exec=============\n");
+    vmprint(p->pagetable);
+    printf("=====================================\n");
+    printf("==============after exec, parent:==============\n");
+    vmprint(p->parent->pagetable);
+    printf("=====================================\n");
+  }*/
   return argc; // this ends up in a0, the first argument to main(argc, argv)
 
  bad:
