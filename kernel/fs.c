@@ -533,12 +533,13 @@ dirlookup(struct inode *dp, char *name, uint *poff)
 
   if(dp->type != T_DIR)
     panic("dirlookup not DIR");
-
+  //printf("dp.size=%d\n", dp->size);
   for(off = 0; off < dp->size; off += sizeof(de)){
     if(readi(dp, 0, (uint64)&de, off, sizeof(de)) != sizeof(de))
       panic("dirlookup read");
     if(de.inum == 0)
       continue;
+    //printf("No.%d de.name = %s\n", off/sizeof(de), de.name);
     if(namecmp(name, de.name) == 0){
       // entry matches path element
       if(poff)
@@ -547,7 +548,6 @@ dirlookup(struct inode *dp, char *name, uint *poff)
       return iget(dp->dev, inum);
     }
   }
-
   return 0;
 }
 
@@ -633,7 +633,7 @@ namex(char *path, int nameiparent, char *name)
     ip = iget(ROOTDEV, ROOTINO);
   else
     ip = idup(myproc()->cwd);
-
+  //printf("path = %s\n", path);
   while((path = skipelem(path, name)) != 0){
     ilock(ip);
     if(ip->type != T_DIR){
