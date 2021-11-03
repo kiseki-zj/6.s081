@@ -321,7 +321,7 @@ sys_open(void)
     end_op();
     return -1;
   }
-
+  
   if((f = filealloc()) == 0 || (fd = fdalloc(f)) < 0){
     if(f)
       fileclose(f);
@@ -329,15 +329,60 @@ sys_open(void)
     end_op();
     return -1;
   }
-
-  if(ip->type == T_DEVICE){
-    f->type = FD_DEVICE;
-    f->major = ip->major;
-  } else {
+  
+  char target[MAXPATH];
+  struct inode *tp, *ttp;
+  int depth = 0;
+  if (ip->type == T_SYMLINK) {
     f->type = FD_INODE;
     f->off = 0;
+    if (omode & O_NOFOLLOW) {
+      f->ip = ip;
+    }
+    else {
+      readi(ip, 0, (uint64)target, 0, MAXPATH);
+      if ((tp = namei(target)) == 0) {
+        fileclose(f);
+        iunlock(ip);
+        end_op();
+        return -1;
+      }
+      ilock(tp);
+      while (tp->type == T_SYMLINK) {
+        readi(tp, 0, (uint64)target, 0, MAXPATH);
+        depth++;
+        if ((ttp = namei(target)) == 0) {
+          fileclose(f);
+          iunlock(tp);
+          iunlock(ip);
+          end_op();
+          return -1;
+        }
+        iunlock(tp);
+        tp = ttp;
+        printf("%d ", depth);
+        if (depth >= 10) {
+          fileclose(f);
+          iunlock(ip);
+          end_op();
+          return -1;
+        }
+        ilock(tp);
+      }
+      f->ip = tp;
+    }
   }
-  f->ip = ip;
+
+  else {
+    if(ip->type == T_DEVICE){
+      f->type = FD_DEVICE;
+      f->major = ip->major;
+    } else {
+      f->type = FD_INODE;
+      f->off = 0;
+    }
+    f->ip = ip;
+  }
   f->readable = !(omode & O_WRONLY);
   f->writable = (omode & O_WRONLY) || (omode & O_RDWR);
 
@@ -482,5 +527,25 @@ sys_pipe(void)
     fileclose(wf);
     return -1;
   }
+  return 0;
+}
+
+uint64
+sys_symlink(void) {
+  char target[MAXPATH], path[MAXPATH];
+  struct inode *ip;
+  if (argstr(0, target, MAXPATH) < 0 || argstr(1, path, MAXPATH) < 0) {
+    return -1;
+  }
+  begin_op();
+
+  if ((ip = create(path, T_SYMLINK, 0, 0)) == 0) {
+    end_op();
+    return -1;
+  }
+  writei(ip, 0, (uint64)target, 0, MAXPATH);
+  iunlockput(ip);
+  end_op();
+
   return 0;
 }
