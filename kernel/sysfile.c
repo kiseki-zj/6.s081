@@ -334,40 +334,40 @@ sys_open(void)
   struct inode *tp, *ttp;
   int depth = 0;
   if (ip->type == T_SYMLINK) {
-    f->type = FD_INODE;
-    f->off = 0;
     if (omode & O_NOFOLLOW) {
       f->ip = ip;
     }
     else {
       readi(ip, 0, (uint64)target, 0, MAXPATH);
+      printf("%s\n", target);
       if ((tp = namei(target)) == 0) {
         fileclose(f);
-        iunlock(ip);
+        iunlockput(ip);
         end_op();
         return -1;
       }
       ilock(tp);
       while (tp->type == T_SYMLINK) {
         readi(tp, 0, (uint64)target, 0, MAXPATH);
+        printf("%s\n", target);
         depth++;
         if ((ttp = namei(target)) == 0) {
           fileclose(f);
-          iunlock(tp);
-          iunlock(ip);
+          iunlockput(tp);
+          iunlockput(ip);
           end_op();
           return -1;
         }
-        iunlock(tp);
+        ilock(ttp);
+        iunlockput(tp);
         tp = ttp;
         printf("%d ", depth);
         if (depth >= 10) {
           fileclose(f);
-          iunlock(ip);
+          iunlockput(ip);
           end_op();
           return -1;
         }
-        ilock(tp);
       }
       f->ip = tp;
     }
@@ -389,13 +389,91 @@ sys_open(void)
   if((omode & O_TRUNC) && ip->type == T_FILE){
     itrunc(ip);
   }
+  if (ip->type == T_SYMLINK) {
+      f->type = FD_INODE;
+      f->off = 0;
+      if (omode & O_NOFOLLOW)
+        iunlock(ip);
+      else {
+          iunlockput(ip);
+          iunlock(f->ip);
+      }
+  }
+  else
+    iunlock(ip);
+  end_op();
+
+  return fd;
+}
+/*
+uint64
+sys_open(void)
+{
+  char path[MAXPATH];
+  int fd, omode;
+  struct file *f;
+  struct inode *ip;
+  int n;
+
+  if((n = argstr(0, path, MAXPATH)) < 0 || argint(1, &omode) < 0)
+    return -1;
+
+  begin_op();
+
+  if(omode & O_CREATE){
+    ip = create(path, T_FILE, 0, 0);
+    if(ip == 0){
+      end_op();
+      return -1;
+    }
+  } else {
+    if((ip = namei(path)) == 0){
+      end_op();
+      return -1;
+    }
+    ilock(ip);
+    if(ip->type == T_DIR && omode != O_RDONLY){
+      iunlockput(ip);
+      end_op();
+      return -1;
+    }
+  }
+
+  if(ip->type == T_DEVICE && (ip->major < 0 || ip->major >= NDEV)){
+    iunlockput(ip);
+    end_op();
+    return -1;
+  }
+
+  if((f = filealloc()) == 0 || (fd = fdalloc(f)) < 0){
+    if(f)
+      fileclose(f);
+    iunlockput(ip);
+    end_op();
+    return -1;
+  }
+
+  if(ip->type == T_DEVICE){
+    f->type = FD_DEVICE;
+    f->major = ip->major;
+  } else {
+    f->type = FD_INODE;
+    f->off = 0;
+  }
+  f->ip = ip;
+  f->readable = !(omode & O_WRONLY);
+  f->writable = (omode & O_WRONLY) || (omode & O_RDWR);
+
+  if((omode & O_TRUNC) && ip->type == T_FILE){
+    itrunc(ip);
+  }
 
   iunlock(ip);
   end_op();
 
   return fd;
 }
-
+*/
 uint64
 sys_mkdir(void)
 {
