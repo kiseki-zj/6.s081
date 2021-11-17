@@ -5,6 +5,7 @@
 #include "spinlock.h"
 #include "proc.h"
 #include "defs.h"
+#include "fcntl.h"
 
 struct cpu cpus[NCPU];
 
@@ -48,6 +49,8 @@ procinit(void)
   for(p = proc; p < &proc[NPROC]; p++) {
       initlock(&p->lock, "proc");
       p->kstack = KSTACK((int) (p - proc));
+      for (int i = 0; i < 16; ++i)
+        p->vmas[i].valid = 0;
   }
 }
 
@@ -295,7 +298,13 @@ fork(void)
     if(p->ofile[i])
       np->ofile[i] = filedup(p->ofile[i]);
   np->cwd = idup(p->cwd);
-
+  for (i = 0; i < 16; i++) {
+    if (p->vmas[i].valid) {
+      struct VMA v = p->vmas[i];
+      np->vmas[i] = v;
+      filedup(v.f);
+    }
+  }
   safestrcpy(np->name, p->name, sizeof(p->name));
 
   pid = np->pid;
@@ -352,7 +361,20 @@ exit(int status)
       p->ofile[fd] = 0;
     }
   }
-
+  for (int i = 0; i < 16; ++i) {
+    if (p->vmas[i].valid) {
+      p->vmas[i].valid = 0;
+      struct VMA *v = &p->vmas[i];
+      for (int np = 0; np < v->length/PGSIZE; ++np) {
+        if (walkaddr(p->pagetable, v->addr+np*PGSIZE)) {
+          if (v->flags | MAP_SHARED)
+            filewrite(v->f, v->addr+np*PGSIZE, PGSIZE);
+          uvmunmap(p->pagetable, v->addr+np*PGSIZE, 1, 1);
+        }
+      } 
+      filedel(v->f);
+    }
+  }
   begin_op();
   iput(p->cwd);
   end_op();
@@ -700,4 +722,14 @@ procdump(void)
     printf("%d %s %s", p->pid, state, p->name);
     printf("\n");
   }
+}
+int isValid(uint64 va) {
+  struct proc *p = myproc();
+  for (int i = 0; i < 16; i++) {
+    struct VMA v = p->vmas[i];
+    if (v.valid && va>= v.addr && va <= v.addr+v.length) {
+      return i;
+    }
+  }
+  return -1;
 }

@@ -223,7 +223,6 @@ sys_unlink(void)
     iupdate(dp);
   }
   iunlockput(dp);
-
   ip->nlink--;
   iupdate(ip);
   iunlockput(ip);
@@ -481,6 +480,79 @@ sys_pipe(void)
     fileclose(rf);
     fileclose(wf);
     return -1;
+  }
+  return 0;
+}
+
+uint64
+sys_mmap(void) {
+  uint64 length;
+  int prot, flags, fd;
+  if (argaddr(1, &length) < 0 || argint(2, &prot) < 0 || argint(3, &flags) < 0 || argint(4, &fd) < 0) 
+    return -1;
+  struct proc *p = myproc();
+  struct file *file = p->ofile[fd];
+  // printf("ref before mmap=%d\n", file->ip->ref);
+  if ((prot & PROT_READ) && !file->readable)
+    return -1;
+  if ((flags & MAP_SHARED) && (prot & PROT_WRITE) && !file->writable)
+    return -1;
+  uint64 maxend = 0;
+  for (int i = 0; i < 16; ++i)
+    if (p->vmas[i].valid && p->vmas[i].addr+p->vmas[i].length > maxend)
+      maxend = p->vmas[i].addr + p->vmas[i].length;
+  for (int i = 0; i < 16; ++i) {
+    if (!p->vmas[i].valid) {
+      //printf("fd = %d file->ip->inum = %d\n", fd, file->ip->inum);
+      p->vmas[i].addr = maxend==0?MMAPBASE:PGROUNDUP(maxend);
+      p->vmas[i].length = length;
+      p->vmas[i].fd = fd;
+      p->vmas[i].f = file;
+      p->vmas[i].flags = flags;
+      p->vmas[i].offset = 0;
+      p->vmas[i].prot = prot;
+      p->vmas[i].valid = 1;
+      filedup(p->vmas[i].f);
+      // printf("ref after mmap=%d\n", file->ip->ref);
+      return p->vmas[i].addr;
+    }
+  }
+  return -1;
+}
+
+uint64
+sys_munmap(void) {
+  uint64 addr, length;
+  if (argaddr(0, &addr) < 0 || argaddr(1, &length) < 0)
+    return -1;
+  struct proc *p = myproc();
+  for (int i = 0; i < 16; ++i) {
+    struct VMA *v = &p->vmas[i];
+    if (v->valid && addr >= v->addr && addr <= v->addr+v->length) {
+      int flag = 0;
+      if (addr == v->addr && addr+length == v->addr+v->length)
+        flag = 1;
+      if (v->flags | MAP_SHARED) 
+        filewrite(v->f, addr, length);
+      // printf("addr=%p\nlength=%d\n%d\n", addr, length, flag);
+      // printf("----------before unmap----------------\n");
+      // vmprint(p->pagetable);
+      // printf("--------------------------------------\n");
+      if (walkaddr(p->pagetable, addr))
+        uvmunmap(p->pagetable, addr, length/PGSIZE, 1);
+      // printf("----------after  unmap----------------\n");
+      // vmprint(p->pagetable);
+      // printf("--------------------------------------\n");
+      if (flag) {
+        v->valid = 0;
+        v->f = filedel(v->f);
+      }
+      else {
+        if (addr == v->addr)
+          v->addr = addr + length;
+        v->length = v->length - length;
+      }
+    }
   }
   return 0;
 }

@@ -5,6 +5,10 @@
 #include "spinlock.h"
 #include "proc.h"
 #include "defs.h"
+#include "fcntl.h"
+#include "sleeplock.h"
+#include "fs.h"
+#include "file.h"
 
 struct spinlock tickslock;
 uint ticks;
@@ -65,7 +69,15 @@ usertrap(void)
     intr_on();
 
     syscall();
-  } else if((which_dev = devintr()) != 0){
+  } 
+  else if (r_scause() == 13 || r_scause() == 15) {
+    uint64 va = r_stval();
+    if (mmap_pgfault(p, va)<0) {
+      p->killed = -1;
+    } 
+  }
+  
+  else if((which_dev = devintr()) != 0){
     // ok
   } else {
     printf("usertrap(): unexpected scause %p pid=%d\n", r_scause(), p->pid);
@@ -218,3 +230,42 @@ devintr()
   }
 }
 
+int mmap_pgfault(struct proc *p, uint64 va) {
+  struct VMA *v = 0;
+  for (int i = 0; i < 16; ++i) {
+    if (p->vmas[i].valid && va >= p->vmas[i].addr && va < p->vmas[i].addr+p->vmas[i].length) {
+      v = &p->vmas[i];
+      break;
+    }
+  }
+  if (v == 0)
+    return -1;
+  uint64 ka;
+  ka = (uint64)kalloc();
+  if (ka == 0) {
+    return -1;
+  }
+  memset((void*)ka, 0, PGSIZE);
+  int pte_prot = PTE_U | PTE_X;
+  if (v->prot | PROT_READ)
+    pte_prot |= PTE_R;
+  if (v->prot | PROT_WRITE)
+    pte_prot |= PTE_W;
+  // printf("---------trap before---------\n");
+  // vmprint(p->pagetable);
+  // printf("-----------------------------\n");
+  if (mappages(p->pagetable, PGROUNDDOWN(va), PGSIZE, ka, pte_prot) < 0) {
+    kfree((void*)ka);
+    return -1;
+  }
+  // printf("---------trap after ---------\n");
+  // vmprint(p->pagetable);
+  // printf("-----------------------------\n");
+  struct file *f = v->f;
+  //printf("------%d\n", f->ip->inum);
+  idup(f->ip);
+  ilock(f->ip);
+  readi(f->ip, 1, PGROUNDDOWN(va), PGROUNDDOWN(va)-v->addr, PGSIZE);
+  iunlockput(f->ip);
+  return 0;
+}

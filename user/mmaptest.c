@@ -111,6 +111,7 @@ mmap_test(void)
   // offset in the file.
   //
   char *p = mmap(0, PGSIZE*2, PROT_READ, MAP_PRIVATE, fd, 0);
+  printf("%p\n", p);
   if (p == MAP_FAILED)
     err("mmap (1)");
   _v1(p);
@@ -229,8 +230,9 @@ mmap_test(void)
 
   if(memcmp(p1, "12345", 5) != 0)
     err("mmap1 mismatch");
-  if(memcmp(p2, "67890", 5) != 0)
+  if(memcmp(p2, "67890", 5) != 0){
     err("mmap2 mismatch");
+  }
 
   munmap(p1, PGSIZE);
   if(memcmp(p2, "67890", 5) != 0)
